@@ -1,73 +1,56 @@
+import streamlit as st
 import pandas as pd
 import plotly.express as px
-import streamlit as st
 
-# Cargar los datos
-car_data = pd.read_csv('vehicles_us.csv')
+# Configuración página
+st.set_page_config(page_title="Vehicles Dashboard", layout="wide")
 
-# Encabezado de la aplicación
-st.header('📊 Dashboard de Vehículos en Venta 🚗🚗🚗')
+# Título
+st.header("🚗 Dashboard Análisis Vehículos US")
+st.markdown("---")
 
-st.write("""
-Análisis interactivo del mercado de vehículos usados en Estados Unidos.
-Explore las características y tendencias de los anuncios de venta.
-""")
+# Cargar datos
+@st.cache_data
+def load_data():
+    return pd.read_csv('vehicles_us.csv')
 
-# Separador
-st.divider()
+car_data = load_data()
+st.write(f"📊 Datos cargados: **{len(car_data):,}** registros")
 
-# Sección de visualizaciones
-st.subheader('Visualizaciones')
+# Sidebar filtros (opcional extra)
+st.sidebar.header("Filtros")
+max_price = st.sidebar.slider("Precio máximo", 0, int(car_data['price'].max()), 50000)
 
-# Opción de usar checkboxes en lugar de botones
-use_checkboxes = st.checkbox('Usar checkboxes en lugar de botones', value=False)
+# Filtrar datos
+filtered_data = car_data[car_data['price'] <= max_price]
 
-st.divider()
+# Checkbox interactivos
+col1, col2 = st.columns(2)
 
-if use_checkboxes:
-    # Usar checkboxes
-    show_histogram = st.checkbox('Mostrar Histograma')
-    show_scatter = st.checkbox('Mostrar Gráfico de Dispersión')
-else:
-    # Usar botones
-    col1, col2 = st.columns(2)
+with col1:
+    show_histogram = st.checkbox("📈 Histograma Odometer", value=True)
     
-    with col1:
-        show_histogram = st.button('Construir Histograma')
-    
-    with col2:
-        show_scatter = st.button('Construir Gráfico de Dispersión')
-
-st.divider()
+with col2:
+    show_scatter = st.checkbox("📉 Precio vs Odometer", value=True)
 
 # Histograma
 if show_histogram:
-    st.write('📈 Creación de un histograma para los anuncios de coches')
-    fig_histogram = px.histogram(car_data, x="odometer", nbins=30,
-                                 title='Distribución del Odómetro en Vehículos',
-                                 labels={'odometer': 'Odómetro (millas)', 'count': 'Cantidad de Vehículos'})
-    st.plotly_chart(fig_histogram, use_container_width=True)
+    st.subheader("Histograma Odometer")
+    fig_hist = px.histogram(filtered_data, x="odometer", nbins=50, 
+                           title="Distribución Kilometraje")
+    st.plotly_chart(fig_hist, use_container_width=True)
 
-# Gráfico de Dispersión
+# Scatter
 if show_scatter:
-    st.write('📍 Creación de un gráfico de dispersión: Precio vs Odómetro')
-    fig_scatter = px.scatter(car_data, x="odometer", y="price",
-                             title='Relación entre Odómetro y Precio',
-                             labels={'odometer': 'Odómetro (millas)', 'price': 'Precio ($)'},
-                             opacity=0.6)
+    st.subheader("Precio vs Kilometraje")
+    fig_scatter = px.scatter(filtered_data, x="odometer", y="price",
+                           hover_data=["make", "model"],
+                           title="Relación Precio-Kilometraje")
     st.plotly_chart(fig_scatter, use_container_width=True)
 
-st.divider()
-
-# Estadísticas adicionales
-st.subheader('📋 Estadísticas Generales')
+# Estadísticas
 col1, col2, col3 = st.columns(3)
+col1.metric("Precio Promedio", f"${filtered_data['price'].mean():,.0f}")
+col2.metric("Odometer Promedio", f"{filtered_data['odometer'].mean():,.0f} millas")
+col3.metric("Autos Disponibles", f"{len(filtered_data):,}")
 
-with col1:
-    st.metric('Total de Vehículos', len(car_data))
-
-with col2:
-    st.metric('Precio Promedio', f'${car_data["price"].mean():.2f}')
-
-with col3:
-    st.metric('Odómetro Promedio', f'{car_data["odometer"].mean():.0f} millas')
